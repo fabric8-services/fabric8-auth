@@ -109,14 +109,14 @@ func TestGetEnvironmentOK(t *testing.T) {
 	// Environment not set
 	saConfig, err := configuration.GetConfigurationData()
 	require.NoError(t, err)
-	assert.Equal(t, "http://localhost", saConfig.GetAuthServiceURL())
+	assert.Equal(t, "http://auth.localhost", saConfig.GetAuthServiceURL())
 	assert.Contains(t, saConfig.DefaultConfigurationError().Error(), "environment is expected to be set to 'production' or 'prod-preview'")
 
 	// Environment set to some unknown value
 	os.Setenv(constAuthEnvironment, "somethingelse")
 	saConfig, err = configuration.GetConfigurationData()
 	require.NoError(t, err)
-	assert.Equal(t, "http://localhost", saConfig.GetAuthServiceURL())
+	assert.Equal(t, "http://auth.localhost", saConfig.GetAuthServiceURL())
 	assert.Contains(t, saConfig.DefaultConfigurationError().Error(), "environment is expected to be set to 'production' or 'prod-preview'")
 
 	// Environment set to prod-preview

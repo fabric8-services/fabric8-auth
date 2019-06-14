@@ -108,6 +108,57 @@ func TestReplaceDomainPrefixInAbsoluteURLOK(t *testing.T) {
 	assert.Equal(t, "https://core.openshift.io/testpath6", urlStr)
 }
 
+func TestReplaceDomainPrefixInAbsoluteURLStr(t *testing.T) {
+	tables := []struct {
+		urlStr    string
+		replaceBy string
+		relative  string
+		want      string
+		wantErr   bool
+	}{
+		{
+			urlStr:    "http://auth.localhost",
+			replaceBy: "",
+			relative:  "",
+			want:      "http://localhost",
+		},
+		{
+			urlStr:    "http://auth.localhost",
+			replaceBy: "cluster",
+			relative:  "",
+			want:      "http://cluster.localhost",
+		},
+		{
+			urlStr:    "http://auth.localhost",
+			replaceBy: "",
+			relative:  "/testpath1",
+			want:      "http://localhost/testpath1",
+		},
+		{
+			urlStr:    "http://auth.localhost",
+			replaceBy: "cluster",
+			relative:  "/testpath2",
+			want:      "http://cluster.localhost/testpath2",
+		},
+		{
+			urlStr:    "http://localhost",
+			replaceBy: "",
+			relative:  "",
+			wantErr:   true,
+		},
+	}
+
+	for _, table := range tables {
+		got, err := ReplaceDomainPrefixInAbsoluteURLStr(table.urlStr, table.replaceBy, table.relative)
+		if table.wantErr {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+			assert.Equal(t, table.want, got)
+		}
+	}
+}
+
 func TestHostOK(t *testing.T) {
 	resource.Require(t, resource.UnitTest)
 	t.Parallel()

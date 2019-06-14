@@ -81,6 +81,22 @@ func ReplaceDomainPrefixInAbsoluteURL(req *goa.RequestData, replaceBy, relative 
 	return absoluteURLForHost(req, newHost, relative), nil
 }
 
+// ReplaceDomainPrefixInAbsoluteURLStr check ReplaceDomainPrefixInAbsoluteURL.  This works on url string.
+func ReplaceDomainPrefixInAbsoluteURLStr(urlStr, replaceBy, relative string) (string, error) {
+	if urlStr == "" { // this happens for tests. See https://github.com/goadesign/goa/issues/1861
+		return "", nil
+	}
+	url, err := url.Parse(urlStr)
+	if err != nil {
+		return "", err
+	}
+	newHost, err := ReplaceDomainPrefix(url.Host, replaceBy)
+	if err != nil {
+		return "", err
+	}
+	return toAbsoluteURL(url.Scheme, newHost, relative), nil
+}
+
 func absoluteURLForHost(req *goa.RequestData, host, relative string) string {
 	scheme := "http"
 	if req.URL != nil && req.URL.Scheme == "https" { // isHTTPS
@@ -89,6 +105,13 @@ func absoluteURLForHost(req *goa.RequestData, host, relative string) string {
 	xForwardProto := req.Header.Get("X-Forwarded-Proto")
 	if xForwardProto != "" {
 		scheme = xForwardProto
+	}
+	return fmt.Sprintf("%s://%s%s", scheme, host, relative)
+}
+
+func toAbsoluteURL(scheme, host, relative string) string {
+	if scheme == "" {
+		scheme = "http"
 	}
 	return fmt.Sprintf("%s://%s%s", scheme, host, relative)
 }
