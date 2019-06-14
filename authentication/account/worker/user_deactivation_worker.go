@@ -64,7 +64,7 @@ func (w userDeactivationWorker) deactivateUsers() {
 		if err != nil {
 			if _, ok := err.(autherrors.NotFoundError); ok {
 				// deactivate user directly
-				identity, err := w.App.UserService().DeactivateUser(w.Ctx, identity.Username)
+				_, err := w.App.UserService().DeactivateUser(w.Ctx, identity.Username)
 				if err != nil {
 					metric.RecordUserDeactivationTrigger(false)
 					log.Error(nil, map[string]interface{}{
