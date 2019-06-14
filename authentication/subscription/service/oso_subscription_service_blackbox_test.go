@@ -313,7 +313,7 @@ func (s *osoSubscriptionServiceTestSuite) TestDeactivateUser() {
 		s.Run("should return an error if the client returns 500", func() {
 			username := fmt.Sprintf("user-%s", uuid.NewV4())
 			gock.New(config.GetOSORegistrationAppURL()).
-				Get(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
+				Post(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
 				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
 				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
 				Reply(500)

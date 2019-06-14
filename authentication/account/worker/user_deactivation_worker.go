@@ -66,13 +66,11 @@ func (w userDeactivationWorker) deactivateUsers() {
 				// deactivate user directly
 				_, err := w.App.UserService().DeactivateUser(w.Ctx, identity.Username)
 				if err != nil {
-					metric.RecordUserDeactivationTrigger(false)
 					log.Error(nil, map[string]interface{}{
 						"err":      err,
 						"username": identity.Username,
 					}, "error during deactivating user")
 				} else {
-					metric.RecordUserDeactivationTrigger(true)
 					log.Info(nil, map[string]interface{}{
 						"username": identity.Username,
 					}, "user deactivation is successful")
