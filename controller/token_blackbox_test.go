@@ -29,10 +29,10 @@ import (
 	testservice "github.com/fabric8-services/fabric8-auth/test/generated/application/service"
 	testjwt "github.com/fabric8-services/fabric8-auth/test/jwt"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/goadesign/goa"
 	goajwt "github.com/goadesign/goa/middleware/security/jwt"
-	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -108,7 +108,7 @@ func checkJWK(t *testing.T, testDir string, keys *app.PublicKeys) {
 }
 
 func (s *TokenControllerTestSuite) checkLoginRequiredHeader(rw http.ResponseWriter) {
-	assert.Equal(s.T(), "LOGIN url=http://localhost/api/login, description=\"re-login is required\"", rw.Header().Get("WWW-Authenticate"))
+	assert.Equal(s.T(), "LOGIN url=http://auth.localhost/api/login, description=\"re-login is required\"", rw.Header().Get("WWW-Authenticate"))
 	assert.Contains(s.T(), rw.Header().Get("Access-Control-Expose-Headers"), "WWW-Authenticate")
 }
 

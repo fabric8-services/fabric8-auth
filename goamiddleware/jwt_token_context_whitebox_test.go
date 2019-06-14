@@ -3,19 +3,20 @@ package goamiddleware
 import (
 	"context"
 	"errors"
-	"github.com/fabric8-services/fabric8-auth/authorization/token"
-	"github.com/stretchr/testify/suite"
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
 	"testing"
 	"time"
 
+	"github.com/fabric8-services/fabric8-auth/authorization/token"
+	"github.com/stretchr/testify/suite"
+
 	"github.com/fabric8-services/fabric8-auth/gormtestsupport"
 	testtoken "github.com/fabric8-services/fabric8-auth/test/token"
 
 	"github.com/goadesign/goa"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -58,7 +59,7 @@ func (s *testJWTokenContextSuite) TestHandler() {
 	err = h(context.Background(), rw, rq)
 	require.Error(s.T(), err)
 	assert.Contains(s.T(), err.Error(), "401 token_validation_failed: token is invalid", err.Error())
-	assert.Equal(s.T(), "LOGIN url=http://localhost/api/login, description=\"re-login is required\"", rw.Header().Get("WWW-Authenticate"))
+	assert.Equal(s.T(), "LOGIN url=http://auth.localhost/api/login, description=\"re-login is required\"", rw.Header().Get("WWW-Authenticate"))
 	assert.Contains(s.T(), rw.Header().Get("Access-Control-Expose-Headers"), "WWW-Authenticate")
 
 	// OK if token is valid
@@ -100,7 +101,7 @@ func (s *testJWTokenContextSuite) TestHandler() {
 	require.Error(s.T(), err)
 	assert.Contains(s.T(), err.Error(), "401 token_validation_failed: token is invalid", err.Error())
 	header = textproto.MIMEHeader(rw.Header())
-	require.Equal(s.T(), "LOGIN url=http://localhost/api/login, description=\"re-login is required\"", header.Get("WWW-Authenticate"))
+	require.Equal(s.T(), "LOGIN url=http://auth.localhost/api/login, description=\"re-login is required\"", header.Get("WWW-Authenticate"))
 	assert.Contains(s.T(), rw.Header().Get("Access-Control-Expose-Headers"), "WWW-Authenticate")
 }
 
