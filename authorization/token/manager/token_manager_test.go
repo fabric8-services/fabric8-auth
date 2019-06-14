@@ -42,7 +42,7 @@ func (s *TestTokenSuite) TestGenerateUserTokenForIdentity() {
 
 func (s *TestTokenSuite) TestGenerateTransientUserAccessTokenForIdentity() {
 	// given
-	ctx := testtoken.ContextWithRequest(nil)
+	ctx := context.Background()
 	user := repository.User{
 		ID:       uuid.NewV4(),
 		Email:    uuid.NewV4().String(),
@@ -98,7 +98,7 @@ func (s *TestTokenSuite) TestRefreshedUserTokenForIdentity() {
 
 func (s *TestTokenSuite) TestGenerateUserTokenAndRefreshFlowForAPIClient() {
 	// given
-	ctx := testtoken.ContextWithRequest(nil)
+	ctx := context.Background()
 	identityID := uuid.NewV4()
 	username := uuid.NewV4().String()
 	email := uuid.NewV4().String()
@@ -458,7 +458,7 @@ func (s *TestTokenSuite) checkConvertToken(offlineToken bool) {
 }
 
 func (s *TestTokenSuite) generateToken(offlineToken bool) (*oauth2.Token, repository.Identity, context.Context) {
-	ctx := testtoken.ContextWithRequest(nil)
+	ctx := context.Background()
 	user := repository.User{
 		ID:       uuid.NewV4(),
 		Email:    uuid.NewV4().String(),
