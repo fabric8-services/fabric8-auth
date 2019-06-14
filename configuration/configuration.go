@@ -338,7 +338,7 @@ func NewConfigurationData(mainConfigFile string, serviceAccountConfigFile string
 		c.appendDefaultConfigErrorMessage("OSO Reg App admin token is empty")
 	}
 	c.validateURL(c.GetAuthServiceURL(), "Auth service")
-	if c.GetAuthServiceURL() == "http://localhost" {
+	if c.GetAuthServiceURL() == "http://auth.localhost" {
 		c.appendDefaultConfigErrorMessage("environment is expected to be set to 'production' or 'prod-preview'")
 	}
 	if c.GetSentryDSN() == "" {
@@ -499,7 +499,7 @@ func (c *ConfigurationData) GetAuthServiceURL() string {
 	case prodPreviewEnvironment:
 		return "https://auth.prod-preview.openshift.io"
 	default:
-		return "http://localhost"
+		return "http://auth.localhost"
 	}
 }
 
