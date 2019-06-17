@@ -307,29 +307,29 @@ func (s *osoSubscriptionServiceTestSuite) TestDeactivateUser() {
 			// then
 			require.NoError(s.T(), err)
 		})
-		s.Run("not found", func() {
+	})
+
+	s.Run("failure", func() {
+		s.Run("should return an error if the client returns 500", func() {
+			username := fmt.Sprintf("user-%s", uuid.NewV4())
+			gock.New(config.GetOSORegistrationAppURL()).
+				Post(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
+				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
+				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
+				Reply(500)
+			// when
+			err := svc.DeactivateUser(context.Background(), username)
+			// then
+			require.Error(s.T(), err)
+		})
+
+		s.Run("should return an error if the client returns 404", func() {
 			username := fmt.Sprintf("user-%s", uuid.NewV4())
 			gock.New(config.GetOSORegistrationAppURL()).
 				Post(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
 				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
 				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
 				Reply(404)
-			// when
-			err := svc.DeactivateUser(context.Background(), username)
-			// then
-			require.NoError(s.T(), err)
-		})
-	})
-
-	s.Run("failure", func() {
-
-		s.Run("should return an error if the client returns any status but 200", func() {
-			username := fmt.Sprintf("user-%s", uuid.NewV4())
-			gock.New(config.GetOSORegistrationAppURL()).
-				Get(fmt.Sprintf("api/accounts/%s/deprovision_osio", username)).
-				MatchParam("authorization_username", config.GetOSORegistrationAppAdminUsername()).
-				MatchHeader("Authorization", fmt.Sprintf("Bearer %s", config.GetOSORegistrationAppAdminToken())).
-				Reply(500)
 			// when
 			err := svc.DeactivateUser(context.Background(), username)
 			// then

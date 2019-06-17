@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/fabric8-services/fabric8-auth/application"
+	autherrors "github.com/fabric8-services/fabric8-auth/errors"
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/metric"
 	"github.com/fabric8-services/fabric8-auth/worker"
@@ -60,14 +61,30 @@ func (w userDeactivationWorker) deactivateUsers() {
 		// deactivating the user on OSO and then call back `auth` service (on its `/namedusers/:username/deactivate` endpoint)
 		// which will handle the deactivation on the OSIO platform
 		err = w.App.OSOSubscriptionService().DeactivateUser(w.Ctx, identity.Username)
-		metric.RecordUserDeactivationTrigger(err == nil)
 		if err != nil {
-			// We will just log the error and continue
-			log.Error(nil, map[string]interface{}{
-				"err":      err,
-				"username": identity.Username,
-			}, "error while deactivating user")
+			if _, ok := err.(autherrors.NotFoundError); ok {
+				// deactivate user directly
+				_, err := w.App.UserService().DeactivateUser(w.Ctx, identity.Username)
+				if err != nil {
+					log.Error(nil, map[string]interface{}{
+						"err":      err,
+						"username": identity.Username,
+					}, "error during deactivating user")
+				} else {
+					log.Info(nil, map[string]interface{}{
+						"username": identity.Username,
+					}, "user deactivation is successful")
+				}
+			} else {
+				// We will just log the error and continue
+				metric.RecordUserDeactivationTrigger(false)
+				log.Error(nil, map[string]interface{}{
+					"err":      err,
+					"username": identity.Username,
+				}, "error while triggering user deactivation")
+			}
 		} else {
+			metric.RecordUserDeactivationTrigger(true)
 			log.Info(nil, map[string]interface{}{
 				"username": identity.Username,
 			}, "user account deactivation triggered")
