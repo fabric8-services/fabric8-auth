@@ -212,17 +212,6 @@
   revision = "a5502dd2746ee6fc3fd58ad83d701d25e14d68d1"
 
 [[projects]]
-  branch = "travis-1.9"
-  digest = "1:e8f5d9c09a7209c740e769713376abda388c41b777ba8e9ed52767e21acf379f"
-  name = "github.com/golang/lint"
-  packages = [
-    ".",
-    "golint",
-  ]
-  pruneopts = "UT"
-  revision = "883fe33ffc4344bad1ecd881f61afd5ec5d80e0a"
-
-[[projects]]
   digest = "1:e9684f376cdd9a3b44b0a0cb8c626ce5e907a5541fad0c50e1e6d5f8999609ae"
   name = "github.com/golang/protobuf"
   packages = ["proto"]
@@ -572,6 +561,17 @@
   revision = "81e90905daefcd6fd217b62423c0908922eadb30"
 
 [[projects]]
+  branch = "master"
+  digest = "1:21d7bad9b7da270fd2d50aba8971a041bd691165c95096a2a4c68db823cbc86a"
+  name = "golang.org/x/lint"
+  packages = [
+    ".",
+    "golint",
+  ]
+  pruneopts = "UT"
+  revision = "16217165b5de779cb6a5e4fc81fa9c1166fda457"
+
+[[projects]]
   digest = "1:a04bd0bee076e5534d937479d659161dab38eed8d9b777b24a9f6f0de51b3be9"
   name = "golang.org/x/net"
   packages = [
@@ -632,15 +632,15 @@
   revision = "a888bfdffa4526cc6987572bca9a2c6b7758290f"
 
 [[projects]]
-  branch = "master"
-  digest = "1:363686890941480b8d1a0421b9e538cf55feaf9c7967bf4c809150b36138fe1c"
+  digest = "1:a0e46a43516d3f5ff0ba3636488b8a8df632b2986da49823cd8340c070c1a125"
   name = "golang.org/x/xerrors"
   packages = [
     ".",
     "internal",
   ]
   pruneopts = "UT"
-  revision = "d61658bd2e18010be0e21349cc92b1b706e35146"
+  revision = "1b5146add8981d58be77b16229c0ff0f8bebd8c1"
+  source = "github.com/golang/xerrors"
 
 [[projects]]
   digest = "1:8744b3770858b2ef5344f7c664e1036b8bcee8b2f8b8b8729f3b2706ca54fff5"
@@ -725,7 +725,6 @@
     "github.com/goadesign/goa/uuid",
     "github.com/gojuno/minimock",
     "github.com/gojuno/minimock/cmd/minimock",
-    "github.com/golang/lint/golint",
     "github.com/jinzhu/gorm",
     "github.com/jstemmer/go-junit-report",
     "github.com/jteeuwen/go-bindata/go-bindata",
@@ -745,10 +744,12 @@
     "github.com/stretchr/testify/suite",
     "github.com/wadey/gocovmerge",
     "golang.org/x/crypto/bcrypt",
+    "golang.org/x/lint/golint",
     "golang.org/x/net/context",
     "golang.org/x/net/websocket",
     "golang.org/x/oauth2",
     "golang.org/x/oauth2/github",
+    "golang.org/x/xerrors",
     "gopkg.in/h2non/gock.v1",
     "gopkg.in/square/go-jose.v2",
     "gopkg.in/yaml.v2",
