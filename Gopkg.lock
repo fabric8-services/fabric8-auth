@@ -725,7 +725,7 @@
     "github.com/goadesign/goa/uuid",
     "github.com/gojuno/minimock",
     "github.com/gojuno/minimock/cmd/minimock",
-    "github.com/golang/lint/golint",
+    "golang.org/x/lint/golint",
     "github.com/jinzhu/gorm",
     "github.com/jstemmer/go-junit-report",
     "github.com/jteeuwen/go-bindata/go-bindata",

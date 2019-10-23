@@ -193,7 +193,7 @@ endif
 
 # Build go tool to analysis the code
 $(GOLINT_BIN):
-	cd $(VENDOR_DIR)/github.com/golang/lint/golint && go build -v
+	cd $(VENDOR_DIR)/golang.org/x/lint/golint && go build -v
 $(GOCYCLO_BIN):
 	cd $(VENDOR_DIR)/github.com/fzipp/gocyclo && go build -v
 
