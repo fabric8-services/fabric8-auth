@@ -669,7 +669,7 @@ func (c *ConfigurationData) setConfigDefaults() {
 
 	// Cluster service
 	c.v.SetDefault(varShortClusterServiceURL, "http://f8cluster")
-	c.v.SetDefault(varClusterRefreshInterval, 5*time.Minute) // 5 minutes
+	c.v.SetDefault(varClusterRefreshInterval, 30*time.Second) // 30 seconds
 
 	// User deactivation
 	c.v.SetDefault(varUserDeactivationEnabled, defaultUserDeactivationEnabled)
