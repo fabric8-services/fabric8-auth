@@ -27,7 +27,6 @@ import (
 	"github.com/fabric8-services/fabric8-auth/log"
 	"github.com/fabric8-services/fabric8-auth/metric"
 	"github.com/fabric8-services/fabric8-auth/migration"
-	"github.com/fabric8-services/fabric8-auth/sentry"
 	"github.com/fabric8-services/fabric8-auth/worker"
 
 	"github.com/goadesign/goa"
@@ -90,17 +89,17 @@ func main() {
 	}
 
 	// Initialize sentry client
-	haltSentry, err := sentry.InitializeSentryClient(
-		config.GetSentryDSN(),
-		sentry.WithRelease(controller.Commit),
-		sentry.WithEnvironment(config.GetEnvironment()),
-	)
-	if err != nil {
-		log.Panic(nil, map[string]interface{}{
-			"err": err,
-		}, "failed to setup the sentry client")
-	}
-	defer haltSentry()
+	// haltSentry, err := sentry.InitializeSentryClient(
+	// 	config.GetSentryDSN(),
+	// 	sentry.WithRelease(controller.Commit),
+	// 	sentry.WithEnvironment(config.GetEnvironment()),
+	// )
+	// if err != nil {
+	// 	log.Panic(nil, map[string]interface{}{
+	// 		"err": err,
+	// 	}, "failed to setup the sentry client")
+	// }
+	// defer haltSentry()
 
 	if config.IsPostgresDeveloperModeEnabled() && log.IsDebug() {
 		db = db.Debug()
