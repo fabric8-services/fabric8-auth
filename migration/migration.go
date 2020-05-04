@@ -268,6 +268,9 @@ func GetMigrations(configuration MigrationConfiguration) Migrations {
 	// Version 53
 	m = append(m, steps{ExecuteSQLFile("053-deactivation-indexes.sql")})
 
+	// Version 54
+	m = append(m, steps{ExecuteSQLFile("054-cleanup-oauth-state-references.sql")})
+
 	// Version N
 	//
 	// In order to add an upgrade, simply append an array of MigrationFunc to the

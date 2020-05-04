@@ -204,6 +204,10 @@ const (
 	// varAdminConsoleServiceURL the URL to the Admin Console service
 	varAdminConsoleServiceURL = "admin.console.serviceurl"
 
+	varOAuthStateReferencesCleanupEnabled = "oauth.state.reference.cleanup.enabled"
+	// varOAuthStateReferencesCleanupWorkerIntervalSeconds the interval between 2 cycles of the OAuth state reference cleanup
+	varOAuthStateReferencesCleanupWorkerIntervalSeconds = "oauth.state.reference.cleanup.interval.seconds"
+
 	//------------------------------------------------------------------------------------------------------------------
 	//
 	// Other
@@ -679,6 +683,8 @@ func (c *ConfigurationData) setConfigDefaults() {
 	c.v.SetDefault(varUserDeactivationInactivityPeriodDays, defaultUserDeactivationInactivityPeriodDays)
 	c.v.SetDefault(varUserDeactivationWorkerIntervalSeconds, defaultUserDeactivationWorkerIntervalSeconds)
 	c.v.SetDefault(varUserDeactivationNotificationWorkerIntervalSeconds, defaultUserDeactivationNotificationWorkerIntervalSeconds)
+	c.v.SetDefault(varOAuthStateReferencesCleanupWorkerIntervalSeconds, defaultOAuthStateReferencesCleanupWorkerIntervalSeconds)
+	c.v.SetDefault(varOAuthStateReferencesCleanupEnabled, defaultOAuthStateReferencesCleanupEnabled)
 	c.v.SetDefault(varPodName, defaultPodName)
 	c.v.SetDefault(varUserDeactivationWorkerRescheduleDelayHours, defaultUserDeactivationRescheduleDelayHours)
 	c.v.SetDefault(varAdminConsoleServiceURL, defaultAdminConsoleServiceURL)
@@ -1150,4 +1156,14 @@ func (c *ConfigurationData) GetUserDeactivationWhiteList() []string {
 // GetAdminConsoleServiceURL the URL to access to the Admin Console service
 func (c *ConfigurationData) GetAdminConsoleServiceURL() string {
 	return c.v.GetString(varAdminConsoleServiceURL)
+}
+
+// GetOAuthStateReferencesCleanupEnabled returns the interval between 2 cycles of the user deactivation notification worker.
+func (c *ConfigurationData) GetOAuthStateReferencesCleanupEnabled() bool {
+	return c.v.GetBool(varOAuthStateReferencesCleanupEnabled)
+}
+
+// GetOAuthStateReferencesCleanupWorkerInterval returns the interval between 2 cycles of the OAuth state referencec cleanup.
+func (c *ConfigurationData) GetOAuthStateReferencesCleanupWorkerInterval() time.Duration {
+	return time.Duration(c.v.GetInt(varOAuthStateReferencesCleanupWorkerIntervalSeconds)) * time.Second
 }

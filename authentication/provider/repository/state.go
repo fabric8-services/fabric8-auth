@@ -64,6 +64,7 @@ func (r OauthStateReference) Equal(u convert.Equaler) bool {
 type OauthStateReferenceRepository interface {
 	Create(ctx context.Context, state *OauthStateReference) (*OauthStateReference, error)
 	Delete(ctx context.Context, ID uuid.UUID) error
+	Cleanup(ctx context.Context) error
 	Load(ctx context.Context, state string) (*OauthStateReference, error)
 }
 
@@ -102,6 +103,18 @@ func (r *GormOauthStateReferenceRepository) Delete(ctx context.Context, ID uuid.
 		return errors.NewNotFoundError("oauth state reference", ID.String())
 	}
 
+	return nil
+}
+
+// Cleanup deletes all oauth references created more than 24hrs ago
+// returns NotFoundError or InternalError
+func (r *GormOauthStateReferenceRepository) Cleanup(ctx context.Context) error {
+	if err := r.db.Exec("delete from oauth_state_references where created_at < current_timestamp - interval '1 day'").Error; err != nil {
+		log.Error(ctx, map[string]interface{}{
+			"error": err.Error(),
+		}, "unable to cleanup oauth state references")
+		return errors.NewInternalError(err)
+	}
 	return nil
 }
 
