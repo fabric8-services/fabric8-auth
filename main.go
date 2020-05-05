@@ -17,6 +17,7 @@ import (
 	"github.com/fabric8-services/fabric8-auth/application/transaction"
 	accountservice "github.com/fabric8-services/fabric8-auth/authentication/account/service"
 	userworker "github.com/fabric8-services/fabric8-auth/authentication/account/worker"
+	stateworker "github.com/fabric8-services/fabric8-auth/authentication/provider/worker"
 	"github.com/fabric8-services/fabric8-auth/authorization/token/manager"
 	tokenworker "github.com/fabric8-services/fabric8-auth/authorization/token/worker"
 	"github.com/fabric8-services/fabric8-auth/configuration"
@@ -326,6 +327,14 @@ func main() {
 		userDeactivationWorker := userworker.NewUserDeactivationWorker(ctx, appDB)
 		userDeactivationWorker.Start(config.GetUserDeactivationWorkerInterval())
 		workers = append(workers, userDeactivationWorker)
+	}
+	if config.GetOAuthStateReferencesCleanupEnabled() {
+		log.Info(nil, map[string]interface{}{
+			"cleanup_interval": config.GetOAuthStateReferencesCleanupWorkerInterval(),
+		}, "OAuthStateReferences cleanup worker enabled")
+		oauthStateReferenceCleanupWorker := stateworker.NewOAuthStateReferenceCleanupWorker(ctx, appDB)
+		oauthStateReferenceCleanupWorker.Start(config.GetOAuthStateReferencesCleanupWorkerInterval())
+		workers = append(workers, oauthStateReferenceCleanupWorker)
 	}
 	// graceful shutdown
 	go handleShutdown(db, workers...)

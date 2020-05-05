@@ -125,6 +125,7 @@ func TestMigrations(t *testing.T) {
 	t.Run("TestMigration41", testMigration41)
 	t.Run("TestMigration43", testMigration43)
 	t.Run("TestMigration46", testMigration46)
+	t.Run("TestMigration54", testMigration54)
 
 	// Perform the migration
 	if err := migration.Migrate(sqlDB, databaseName, conf); err != nil {
@@ -559,6 +560,28 @@ func testMigration46(t *testing.T) {
 	err = sqlDB.QueryRow("SELECT last_active FROM identities WHERE id = '00000000-0000-0000-0000-000000000003'").Scan(&lastActive)
 	require.NoError(t, err) // error would occur if the
 	assert.True(t, lastActive.Add(1*time.Minute).After(time.Now()))
+}
+
+func testMigration54(t *testing.T) {
+	// given
+	migrateToVersion(sqlDB, migrations[:(54)], (54))
+	_, err := sqlDB.Exec("DELETE FROM oauth_state_references")
+	require.NoError(t, err)
+	require.Nil(t, runSQLscript(sqlDB, "054-cleanup-oauth-state-references.sql"))
+	var count int64
+	err = sqlDB.QueryRow("SELECT count(*) FROM oauth_state_references").Scan(&count)
+	require.NoError(t, err)
+	require.Equal(t, int64(3), count)
+	// when
+	migrateToVersion(sqlDB, migrations[:(55)], (55))
+	// then
+	err = sqlDB.QueryRow("SELECT count(*) FROM oauth_state_references").Scan(&count)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), count) // only 1 entry left
+	err = sqlDB.QueryRow("SELECT count(*) FROM oauth_state_references where state='bar3'").Scan(&count)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), count) // only 1 entry left
+
 }
 
 // runSQLscript loads the given filename from the packaged SQL test files and

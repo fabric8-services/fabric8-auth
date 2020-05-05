@@ -153,20 +153,20 @@ $(MINIMOCK_BIN):
 generate-minimock: deps $(MINIMOCK_BIN) ## Generate Minimock sources. Only necessary after clean or if changes occurred in interfaces.
 	@echo "Generating mocks..."
 	@-rm -rf test/generated/
-	@-mkdir -p test/generated/application/service
-	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.NotificationService,github.com/fabric8-services/fabric8-auth/application/service.AdminConsoleService,github.com/fabric8-services/fabric8-auth/application/service.ClusterService,github.com/fabric8-services/fabric8-auth/application/service.AuthenticationProviderService,github.com/fabric8-services/fabric8-auth/application/service.UserService,github.com/fabric8-services/fabric8-auth/application/service.TenantService -o ./test/generated/application/service/ -s ".go"
 	@-mkdir -p test/generated/authentication
-	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/authentication/provider.IdentityProvider -o ./test/generated/authentication/ -s ".go"
-	@-mkdir -p test/generated/authentication/account/service
-	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/authentication/account/service.UserServiceConfiguration -o ./test/generated/authentication/account/service -s ".go"
-	@-mkdir -p test/generated/authentication/subscription/service
-	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/authentication/subscription/service.OSOSubscriptionServiceConfiguration -o ./test/generated/authentication/subscription/service -s ".go"
-	@-mkdir -p test/generated/authorization/token/manager
-	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/authorization/token/manager.TokenManagerConfiguration -o ./test/generated/authorization/token/manager/ -s ".go"
+	$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/authentication/provider.IdentityProvider -o ./test/generated/authentication/ -s ".go"
 	@-mkdir -p test/generated/application/service
-	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.AuthenticationProviderService -o ./test/generated/application/service/ -s ".go"
+	$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.NotificationService,github.com/fabric8-services/fabric8-auth/application/service.AdminConsoleService,github.com/fabric8-services/fabric8-auth/application/service.ClusterService,github.com/fabric8-services/fabric8-auth/application/service.AuthenticationProviderService,github.com/fabric8-services/fabric8-auth/application/service.UserService,github.com/fabric8-services/fabric8-auth/application/service.TenantService -o ./test/generated/application/service/ -s ".go"
+	@-mkdir -p test/generated/authentication/account/service
+	$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/authentication/account/service.UserServiceConfiguration -o ./test/generated/authentication/account/service -s ".go"
+	@-mkdir -p test/generated/authentication/subscription/service
+	$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/authentication/subscription/service.OSOSubscriptionServiceConfiguration -o ./test/generated/authentication/subscription/service -s ".go"
+	@-mkdir -p test/generated/authorization/token/manager
+	$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/authorization/token/manager.TokenManagerConfiguration -o ./test/generated/authorization/token/manager/ -s ".go"
+	@-mkdir -p test/generated/application/service
+	$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/application/service.AuthenticationProviderService -o ./test/generated/application/service/ -s ".go"
 	@-mkdir -p test/generated/che/service
-	@$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/che/service.Configuration -o ./test/generated/che/service/ -s ".go"
+	$(MINIMOCK_BIN) -i github.com/fabric8-services/fabric8-auth/che/service.Configuration -o ./test/generated/che/service/ -s ".go"
 	
 
 .PHONY: generate-client

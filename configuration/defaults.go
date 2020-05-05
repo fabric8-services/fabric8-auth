@@ -129,6 +129,10 @@ vwIDAQAB
 	// defaultUserDeactivationNotificationWorkerIntervalSeconds the default interval between 2 cycles of the user deactivation notification worker
 	defaultUserDeactivationNotificationWorkerIntervalSeconds = 60 * 60 // 1 hour
 
+	defaultOAuthStateReferencesCleanupEnabled = true
+	// defaultOAuthStateReferencesCleanupWorkerIntervalSeconds the default interval between 2 cycles of the OAuth state reference cleanup
+	defaultOAuthStateReferencesCleanupWorkerIntervalSeconds = 24 * 60 // 1 hour
+
 	// defaultPodName the default name of the pod (in order to avoid empty value in the logs)
 	defaultPodName = "unknown"
 	// defaultUserDeactivationRescheduleDelayDays default of 1 day to re-attempt a failed deactivation attempt
