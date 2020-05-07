@@ -131,7 +131,7 @@ vwIDAQAB
 
 	defaultOAuthStateReferencesCleanupEnabled = true
 	// defaultOAuthStateReferencesCleanupWorkerIntervalSeconds the default interval between 2 cycles of the OAuth state reference cleanup
-	defaultOAuthStateReferencesCleanupWorkerIntervalSeconds = 24 * 60 // 1 hour
+	defaultOAuthStateReferencesCleanupWorkerIntervalSeconds = 10 * 60 // 10 minutes
 
 	// defaultPodName the default name of the pod (in order to avoid empty value in the logs)
 	defaultPodName = "unknown"

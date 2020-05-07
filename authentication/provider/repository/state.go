@@ -109,12 +109,19 @@ func (r *GormOauthStateReferenceRepository) Delete(ctx context.Context, ID uuid.
 // Cleanup deletes all oauth references created more than 24hrs ago
 // returns NotFoundError or InternalError
 func (r *GormOauthStateReferenceRepository) Cleanup(ctx context.Context) error {
-	if err := r.db.Exec("delete from oauth_state_references where created_at < current_timestamp - interval '1 day'").Error; err != nil {
+	result := r.db.Exec(`delete from oauth_state_references 
+		where id in (
+			select id from oauth_state_references 
+			where created_at < current_timestamp - interval '1 day' limit 1000)`)
+	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
-			"error": err.Error(),
+			"error": result.Error.Error(),
 		}, "unable to cleanup oauth state references")
-		return errors.NewInternalError(err)
+		return errors.NewInternalError(result.Error)
 	}
+	log.Info(ctx, map[string]interface{}{
+		"count": result.RowsAffected,
+	}, "cleanup chunk of old oauth state references")
 	return nil
 }
 
