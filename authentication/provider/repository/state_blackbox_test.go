@@ -72,36 +72,35 @@ func (s *stateBlackBoxTest) TestCreateDeleteLoad() {
 }
 
 func (s *stateBlackBoxTest) TestCleanup() {
-	// given
-	state := &repository.OauthStateReference{
-		Lifecycle: gormsupport.Lifecycle{
-			CreatedAt: time.Now().Add(-10 * 24 * 60 * time.Minute), // 10 days ago
-		},
-		State:    uuid.NewV4().String(),
-		Referrer: "domain.org",
+	// given a set of 1001 stale OAuthstate refs
+	for i := 0; i < 1100; i++ { // 1100 occurrences
+		state := &repository.OauthStateReference{
+			Lifecycle: gormsupport.Lifecycle{
+				CreatedAt: time.Now().Add(-10 * 24 * 60 * time.Minute), // 10 days ago
+			},
+			State:    uuid.NewV4().String(),
+			Referrer: "domain.org",
+		}
+		_, err := s.repo.Create(s.Ctx, state)
+		require.Nil(s.T(), err, "Could not create state reference")
 	}
-	_, err := s.repo.Create(s.Ctx, state)
-	require.Nil(s.T(), err, "Could not create state reference")
-	state2 := &repository.OauthStateReference{
+	recentState := &repository.OauthStateReference{
 		State:    uuid.NewV4().String(),
 		Referrer: "anotherdomain.com",
 	}
-	_, err = s.repo.Create(s.Ctx, state2)
+	_, err := s.repo.Create(s.Ctx, recentState)
 	require.Nil(s.T(), err, "Could not create state reference")
 
 	// when
-	err = s.repo.Cleanup(s.Ctx)
+	count, err := s.repo.Cleanup(s.Ctx)
 
 	// then
 	require.Nil(s.T(), err)
+	// check that 1000 rows were deleted (out of 1100 "stale" records)
+	assert.Equal(s.T(), int64(1000), count)
 
-	// check that state1 was deleted
-	_, err = s.repo.Load(s.Ctx, state.State)
-	require.NotNil(s.T(), err)
-	require.IsType(s.T(), errors.NotFoundError{}, err)
-
-	// check that state2 was NOT deleted
-	s2, err := s.repo.Load(s.Ctx, state2.State)
+	// check that recent state was NOT deleted
+	s2, err := s.repo.Load(s.Ctx, recentState.State)
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), s2)
 

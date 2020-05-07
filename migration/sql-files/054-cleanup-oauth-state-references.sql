@@ -1,2 +1,3 @@
--- deletes all oauth state references older created more than 24 hours ago
-delete from oauth_state_references where created_at < current_timestamp - interval '1 day';
+-- cleanup old OAuth State References
+-- all is now performed by a worker running in a go routine 
+-- (however we need to keep this file since there was already a migration attempt on prod-preview)
