@@ -37,7 +37,7 @@ func (w oauthStateReferenceCleanupWorker) cleanup() {
 		"owner": w.Owner,
 	}, "starting cycle of cleaning up old OAuth state references")
 	// user service has the config settings to limit the number of users to deactivate
-	if err := w.App.OauthStates().Cleanup(w.Ctx); err != nil {
+	if _, err := w.App.OauthStates().Cleanup(w.Ctx); err != nil {
 		// We will just log the error and continue
 		log.Error(nil, map[string]interface{}{
 			"err": err,
