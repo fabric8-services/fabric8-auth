@@ -76,7 +76,7 @@ func (s *stateBlackBoxTest) TestCleanup() {
 	for i := 0; i < 1100; i++ { // 1100 occurrences
 		state := &repository.OauthStateReference{
 			Lifecycle: gormsupport.Lifecycle{
-				CreatedAt: time.Now().Add(-10 * 24 * 60 * time.Minute), // 10 days ago
+				CreatedAt: time.Now().Add(-2 * 60 * time.Minute), // 2 hrs ago
 			},
 			State:    uuid.NewV4().String(),
 			Referrer: "domain.org",
@@ -85,6 +85,9 @@ func (s *stateBlackBoxTest) TestCleanup() {
 		require.Nil(s.T(), err, "Could not create state reference")
 	}
 	recentState := &repository.OauthStateReference{
+		Lifecycle: gormsupport.Lifecycle{
+			CreatedAt: time.Now().Add(-1 * time.Minute), // 1 min ago
+		},
 		State:    uuid.NewV4().String(),
 		Referrer: "anotherdomain.com",
 	}
