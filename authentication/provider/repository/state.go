@@ -112,7 +112,7 @@ func (r *GormOauthStateReferenceRepository) Cleanup(ctx context.Context) (int64,
 	result := r.db.Exec(`delete from oauth_state_references 
 		where id in (
 			select id from oauth_state_references 
-			where created_at < current_timestamp - interval '1 day' limit 1000)`)
+			where created_at < current_timestamp - interval '1 hour' limit 1000)`)
 	if result.Error != nil {
 		log.Error(ctx, map[string]interface{}{
 			"error": result.Error.Error(),
